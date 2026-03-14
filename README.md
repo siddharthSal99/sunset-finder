@@ -13,9 +13,19 @@ A terrain-aware sunset prediction web app. Get sunset quality scores for any loc
 
 - **Backend**: Python 3.10+, FastAPI, Astral, NumPy
 - **Frontend**: React, Vite, Tailwind CSS, React Leaflet
+- **Hosting**: Vercel (Python serverless functions + static frontend)
 - **APIs**: Open-Meteo (weather), OpenStreetMap (map tiles)
 
-## Getting Started
+## Deploy to Vercel
+
+1. Push this repo to GitHub
+2. Import the repository in [Vercel](https://vercel.com)
+3. Vercel auto-detects the config from `vercel.json` -- no manual settings needed
+4. Deploy
+
+The frontend is built with Vite and served as static files. The backend runs as a Python serverless function at `/api`.
+
+## Local Development
 
 ### Prerequisites
 
@@ -39,17 +49,17 @@ npm install
 npm run dev
 ```
 
-The dev server starts at `http://localhost:5173` and proxies API requests to the backend.
+The dev server starts at `http://localhost:5173` and proxies `/api` requests to the backend.
 
 ### API Endpoints
 
 | Endpoint | Description |
 |---|---|
-| `GET /sunset?lat=...&lon=...&date=...` | Sunset prediction for a location |
-| `GET /best-sunset-spots?lat=...&lon=...&radius_km=...` | Top nearby sunset viewing spots |
+| `GET /api/sunset?lat=...&lon=...&date=...` | Sunset prediction for a location |
+| `GET /api/best-sunset-spots?lat=...&lon=...&radius_km=...` | Top nearby sunset viewing spots |
 
 ### Example
 
 ```
-http://localhost:8000/sunset?lat=37.77&lon=-122.42
+http://localhost:8000/api/sunset?lat=37.77&lon=-122.42
 ```

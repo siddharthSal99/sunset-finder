@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import date, datetime
+from datetime import datetime
 
 from backend.services.sunset_service import get_sunset_prediction
 from backend.services.terrain_service import find_best_sunset_spots
@@ -11,14 +11,14 @@ app = FastAPI(title="Sunset Finder API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-@app.get("/sunset", response_model=SunsetResponse)
+@app.get("/api/sunset", response_model=SunsetResponse)
 def get_sunset(
     lat: float = Query(..., ge=-90, le=90),
     lon: float = Query(..., ge=-180, le=180),
@@ -30,7 +30,7 @@ def get_sunset(
     return get_sunset_prediction(lat, lon, target_date)
 
 
-@app.get("/best-sunset-spots", response_model=BestSpotsResponse)
+@app.get("/api/best-sunset-spots", response_model=BestSpotsResponse)
 def get_best_spots(
     lat: float = Query(..., ge=-90, le=90),
     lon: float = Query(..., ge=-180, le=180),
