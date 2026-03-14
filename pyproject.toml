@@ -1,6 +1,15 @@
 [project]
 name = "sunset-finder"
+version = "1.0.0"
 requires-python = ">=3.10"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "requests",
+    "numpy",
+    "astral",
+    "pydantic",
+]
 
 [project.scripts]
 app = "backend.main:app"
