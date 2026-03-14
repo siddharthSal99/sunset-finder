@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@theme {
+  --color-sunset-50: #fff7ed;
+  --color-sunset-100: #ffedd5;
+  --color-sunset-200: #fed7aa;
+  --color-sunset-300: #fdba74;
+  --color-sunset-400: #fb923c;
+  --color-sunset-500: #f97316;
+  --color-sunset-600: #ea580c;
+  --color-sunset-700: #c2410c;
+  --color-sunset-800: #9a3412;
+  --color-sunset-900: #7c2d12;
+
+  --color-twilight-50: #f5f3ff;
+  --color-twilight-100: #ede9fe;
+  --color-twilight-200: #ddd6fe;
+  --color-twilight-300: #c4b5fd;
+  --color-twilight-400: #a78bfa;
+  --color-twilight-500: #8b5cf6;
+  --color-twilight-600: #7c3aed;
+  --color-twilight-700: #6d28d9;
+  --color-twilight-800: #5b21b6;
+  --color-twilight-900: #4c1d95;
+
+  --color-night-800: #1e1b4b;
+  --color-night-900: #0f0a2e;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  z-index: 0;
+}

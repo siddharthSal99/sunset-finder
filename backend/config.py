@@ -1,0 +1,6 @@
+OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
+
+TERRAIN_SAMPLE_DISTANCES_KM = [0.5, 1, 2, 5, 10, 20]
+
+BEST_SPOTS_GRID_STEP_KM = 2.0
+BEST_SPOTS_TOP_N = 10
