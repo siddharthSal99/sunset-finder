@@ -99,6 +99,6 @@ def find_best_sunset_spots(lat, lon, date, radius_km=20) -> list[dict]:
     spots.sort(key=lambda s: (-s["_quality"], s["distance_km"]))
 
     return [
-        {k: v for k, v in s.items() if k != "_quality"}
+        {**{k: v for k, v in s.items() if k != "_quality"}, "spot_type": "weather"}
         for s in spots[:BEST_SPOTS_TOP_N]
     ]

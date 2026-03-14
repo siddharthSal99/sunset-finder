@@ -23,6 +23,17 @@ const spotIcon = new L.DivIcon({
   className: "",
 });
 
+const elevationIcon = new L.DivIcon({
+  html: `<div style="
+    background: linear-gradient(135deg, #2dd4bf, #0d9488);
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  "></div>`,
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+  className: "",
+});
+
 function ClickHandler({ onClick }) {
   useMapEvents({ click: (e) => onClick(e.latlng) });
   return null;
@@ -55,16 +66,29 @@ export default function MapView({ position, spots, onMapClick, flyTo }) {
       )}
 
       {spots.map((spot, i) => (
-        <Marker key={i} position={[spot.lat, spot.lon]} icon={spotIcon}>
+        <Marker
+          key={i}
+          position={[spot.lat, spot.lon]}
+          icon={spot.spot_type === "elevation" ? elevationIcon : spotIcon}
+        >
           <Popup>
             <div className="text-sm space-y-1">
-              <p className="font-semibold">Spot #{i + 1}</p>
+              <p className="font-semibold">
+                {spot.spot_type === "elevation" ? "Viewpoint" : "Spot"} #{i + 1}
+              </p>
               <p className="text-gray-500">{spot.distance_km} km away</p>
-              {(spot.conditions || []).map((c) => (
-                <p key={c.field}>
-                  {c.field}: {c.value}% ({c.rating})
-                </p>
-              ))}
+              {spot.spot_type === "elevation" ? (
+                <>
+                  <p>{spot.elevation_m?.toLocaleString()}m elevation</p>
+                  <p className="text-gray-500">Direction: {spot.direction}</p>
+                </>
+              ) : (
+                (spot.conditions || []).map((c) => (
+                  <p key={c.field}>
+                    {c.field}: {c.value}% ({c.rating})
+                  </p>
+                ))
+              )}
             </div>
           </Popup>
         </Marker>

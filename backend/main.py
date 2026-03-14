@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.config import MAX_FORECAST_DAYS
 from backend.services.sunset_service import get_sunset_prediction
 from backend.services.terrain_service import find_best_sunset_spots
+from backend.services.elevation_service import find_elevation_viewpoints
 from backend.utils.astronomy import get_sunset_azimuth
 from backend.models.sunset_models import SunsetResponse, BestSpotsResponse
 
@@ -64,5 +65,9 @@ def get_best_spots(
 ):
     target_date = _parse_date(date)
     azimuth = get_sunset_azimuth(lat, lon, target_date)
-    spots = find_best_sunset_spots(lat, lon, target_date, radius_km)
-    return BestSpotsResponse(sunset_azimuth=round(azimuth, 1), spots=spots)
+    weather_spots = find_best_sunset_spots(lat, lon, target_date, radius_km)
+    elevation_spots = find_elevation_viewpoints(lat, lon, radius_km)
+    return BestSpotsResponse(
+        sunset_azimuth=round(azimuth, 1),
+        spots=weather_spots + elevation_spots,
+    )

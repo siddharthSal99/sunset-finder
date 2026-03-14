@@ -1,7 +1,11 @@
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
+OPEN_METEO_ELEVATION_URL = "https://api.open-meteo.com/v1/elevation"
 
 MAX_FORECAST_DAYS = 16
 
 BEST_SPOTS_TOP_N = 5
 BEST_SPOTS_MAX_CELLS = 12
 DEFAULT_RADIUS_KM = 20
+
+ELEVATION_BATCH_SIZE = 100
+ELEVATION_NUM_SECTORS = 6

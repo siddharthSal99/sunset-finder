@@ -19,7 +19,10 @@ class SunsetSpot(BaseModel):
     lat: float
     lon: float
     distance_km: float
-    conditions: list[ConditionDetail]
+    conditions: list[ConditionDetail] = []
+    spot_type: str = "weather"
+    elevation_m: float | None = None
+    direction: str | None = None
 
 
 class BestSpotsResponse(BaseModel):
