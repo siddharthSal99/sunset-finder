@@ -1,69 +1,10 @@
 import math
-from backend.config import TERRAIN_SAMPLE_DISTANCES_KM, BEST_SPOTS_GRID_STEP_KM, BEST_SPOTS_TOP_N
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-
-def get_elevation(lat: float, lon: float) -> float:
-    """Mock elevation provider using smooth sine waves for spatial coherence.
-
-    Nearby coordinates produce similar elevations, mimicking real terrain.
-    Returns a value roughly in [0, 500] metres.
-    """
-    elev = (
-        100 * math.sin(lat * 1.1 + 0.3) * math.cos(lon * 1.3 + 0.7)
-        + 60 * math.sin(lat * 5.7 + lon * 3.2)
-        + 30 * math.cos(lat * 13.0 - lon * 11.0)
-        + 15 * math.sin(lat * 37.0 + lon * 29.0)
-    )
-    elev = max(0.0, elev + 250)
-    return round(elev, 1)
-
-
-def _destination_point(lat: float, lon: float, azimuth_deg: float, distance_km: float):
-    """Compute destination lat/lon given start, bearing, and distance."""
-    R = 6371.0
-    d = distance_km / R
-    brng = math.radians(azimuth_deg)
-    lat1 = math.radians(lat)
-    lon1 = math.radians(lon)
-
-    lat2 = math.asin(
-        math.sin(lat1) * math.cos(d)
-        + math.cos(lat1) * math.sin(d) * math.cos(brng)
-    )
-    lon2 = lon1 + math.atan2(
-        math.sin(brng) * math.sin(d) * math.cos(lat1),
-        math.cos(d) - math.sin(lat1) * math.sin(lat2),
-    )
-    return math.degrees(lat2), math.degrees(lon2)
-
-
-def sample_terrain_profile(
-    lat: float, lon: float, azimuth: float
-) -> list[dict]:
-    user_elev = get_elevation(lat, lon)
-    samples = []
-    for dist_km in TERRAIN_SAMPLE_DISTANCES_KM:
-        pt_lat, pt_lon = _destination_point(lat, lon, azimuth, dist_km)
-        pt_elev = get_elevation(pt_lat, pt_lon)
-        dist_m = dist_km * 1000
-        angle = math.degrees(math.atan2(pt_elev - user_elev, dist_m))
-        samples.append({
-            "distance_km": dist_km,
-            "lat": round(pt_lat, 6),
-            "lon": round(pt_lon, 6),
-            "elevation": pt_elev,
-            "angle": round(angle, 4),
-        })
-    return samples
-
-
-def compute_horizon_angle(
-    lat: float, lon: float, azimuth: float
-) -> float:
-    profile = sample_terrain_profile(lat, lon, azimuth)
-    if not profile:
-        return 0.0
-    return max(s["angle"] for s in profile)
+from backend.config import BEST_SPOTS_TOP_N, BEST_SPOTS_MAX_CELLS
+from backend.services.weather_service import get_weather_forecast, WeatherUnavailableError
+from backend.utils.astronomy import get_sunset_time
+from backend.utils.scoring import rate_conditions, conditions_quality_score
 
 
 def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -79,46 +20,85 @@ def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-def find_best_sunset_spots(
-    lat: float,
-    lon: float,
-    azimuth: float,
-    weather_score: float,
-    radius_km: float = 20,
-) -> list[dict]:
-    """Find the best nearby viewpoints, scored on the same 0-10 scale as
-    the main sunset prediction (weather + terrain).
+def _generate_grid_cells(lat: float, lon: float, radius_km: float) -> list[tuple[float, float]]:
+    """Distinct 0.1-degree grid cells within *radius_km*, excluding the user's own cell."""
+    user_cell = (round(lat, 1), round(lon, 1))
+    step = 0.1
+    half_range = radius_km / 111.0
 
-    *weather_score* is the pre-terrain weather component (0-1) computed once
-    for the area.  Each candidate gets its own terrain penalty applied to
-    that base, producing a final 0-10 score directly comparable to the
-    ``/sunset`` endpoint.
-    """
-    step = BEST_SPOTS_GRID_STEP_KM
-    deg_step = step / 111.0
+    cells: set[tuple[float, float]] = set()
+    current_lat = round(lat - half_range, 1)
+    lat_end = round(lat + half_range, 1)
 
-    candidates = []
-    grid_lat = lat - radius_km / 111.0
-    while grid_lat <= lat + radius_km / 111.0:
-        grid_lon = lon - radius_km / (111.0 * max(math.cos(math.radians(lat)), 0.01))
-        lon_limit = lon + radius_km / (111.0 * max(math.cos(math.radians(lat)), 0.01))
-        while grid_lon <= lon_limit:
-            dist = _haversine_km(lat, lon, grid_lat, grid_lon)
-            if 0.5 < dist <= radius_km:
-                elev = get_elevation(grid_lat, grid_lon)
-                horizon = compute_horizon_angle(grid_lat, grid_lon, azimuth)
-                spot_score = weather_score - horizon / 10
-                spot_score = max(0.0, min(1.0, spot_score))
-                candidates.append({
-                    "lat": round(grid_lat, 5),
-                    "lon": round(grid_lon, 5),
-                    "horizon_angle": round(horizon, 2),
-                    "elevation": round(elev, 1),
-                    "distance_km": round(dist, 2),
-                    "score": round(spot_score * 10, 2),
-                })
-            grid_lon += deg_step
-        grid_lat += deg_step
+    while current_lat <= lat_end:
+        lon_range = half_range / max(math.cos(math.radians(lat)), 0.01)
+        current_lon = round(lon - lon_range, 1)
+        lon_end = round(lon + lon_range, 1)
 
-    candidates.sort(key=lambda c: c["score"], reverse=True)
-    return candidates[:BEST_SPOTS_TOP_N]
+        while current_lon <= lon_end:
+            cell = (round(current_lat, 1), round(current_lon, 1))
+            if cell != user_cell:
+                dist = _haversine_km(lat, lon, cell[0], cell[1])
+                if dist <= radius_km:
+                    cells.add(cell)
+            current_lon = round(current_lon + step, 1)
+        current_lat = round(current_lat + step, 1)
+
+    ranked = sorted(cells, key=lambda c: _haversine_km(lat, lon, c[0], c[1]))
+    return ranked[:BEST_SPOTS_MAX_CELLS]
+
+
+def _find_nearest_hour_index(times: list[str], target) -> int:
+    target_str = target.strftime("%Y-%m-%dT%H:00")
+    for i, t in enumerate(times):
+        if t >= target_str:
+            return i
+    return len(times) - 1
+
+
+def find_best_sunset_spots(lat, lon, date, radius_km=20) -> list[dict]:
+    """Sample nearby weather grid cells and rank by condition quality."""
+    cells = _generate_grid_cells(lat, lon, radius_km)
+
+    def _fetch(cell):
+        cell_lat, cell_lon = cell
+        try:
+            weather = get_weather_forecast(cell_lat, cell_lon, date)
+        except (WeatherUnavailableError, Exception):
+            return None
+
+        tz = weather.get("timezone", "UTC")
+        sunset_dt = get_sunset_time(cell_lat, cell_lon, date, timezone=tz)
+        idx = _find_nearest_hour_index(weather["time"], sunset_dt)
+
+        low = weather["cloud_cover_low"][idx] if weather["cloud_cover_low"] else 30
+        mid = weather["cloud_cover_mid"][idx] if weather["cloud_cover_mid"] else 30
+        high = weather["cloud_cover_high"][idx] if weather["cloud_cover_high"] else 30
+        humidity = weather["humidity"][idx] if weather["humidity"] else 50
+
+        conditions = rate_conditions(low, mid, high, humidity)
+        quality = conditions_quality_score(conditions)
+        dist = _haversine_km(lat, lon, cell_lat, cell_lon)
+
+        return {
+            "lat": round(cell_lat, 5),
+            "lon": round(cell_lon, 5),
+            "distance_km": round(dist, 1),
+            "conditions": conditions,
+            "_quality": quality,
+        }
+
+    spots: list[dict] = []
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        futures = {pool.submit(_fetch, c): c for c in cells}
+        for future in as_completed(futures):
+            result = future.result()
+            if result is not None:
+                spots.append(result)
+
+    spots.sort(key=lambda s: (-s["_quality"], s["distance_km"]))
+
+    return [
+        {k: v for k, v in s.items() if k != "_quality"}
+        for s in spots[:BEST_SPOTS_TOP_N]
+    ]

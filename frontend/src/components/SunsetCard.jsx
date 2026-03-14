@@ -1,61 +1,49 @@
 const ratingColors = {
-  Spectacular: "from-sunset-400 to-pink-500",
-  Great: "from-sunset-400 to-sunset-600",
-  Good: "from-yellow-400 to-sunset-500",
-  Fair: "from-yellow-300 to-yellow-500",
-  Poor: "from-gray-400 to-gray-500",
+  Ideal: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+  Excellent: "bg-sky-500/20 text-sky-300 border-sky-500/30",
+  Good: "bg-yellow-500/20 text-yellow-300 border-yellow-500/30",
+  Fair: "bg-orange-500/20 text-orange-300 border-orange-500/30",
+  Poor: "bg-red-500/20 text-red-300 border-red-500/30",
 };
 
 export default function SunsetCard({ data }) {
   if (!data) return null;
 
-  const pct = Math.min(100, Math.max(0, data.sunset_score * 10));
-  const gradient = ratingColors[data.rating] || ratingColors.Fair;
-
   return (
     <div className="rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 p-5 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-white">Sunset Prediction</h2>
-        <span
-          className={`rounded-full bg-gradient-to-r ${gradient} px-3 py-1 text-xs font-bold text-white shadow`}
-        >
-          {data.rating}
+        <span className="text-white/60 text-sm">
+          {data.sunset_time} &middot; {data.sunset_azimuth}&deg;
         </span>
       </div>
 
-      {/* Score bar */}
-      <div>
-        <div className="flex justify-between text-sm text-white/70 mb-1">
-          <span>Quality Score</span>
-          <span className="font-semibold text-white">{data.sunset_score.toFixed(1)} / 10</span>
+      {data.conditions ? (
+        <div className="space-y-2">
+          {data.conditions.map((c) => (
+            <ConditionRow key={c.field} condition={c} />
+          ))}
         </div>
-        <div className="h-3 rounded-full bg-white/10 overflow-hidden">
-          <div
-            className={`h-full rounded-full bg-gradient-to-r ${gradient} transition-all duration-700`}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-      </div>
-
-      {/* Info grid */}
-      <div className="grid grid-cols-2 gap-3 text-sm">
-        <InfoItem label="Sunset Time" value={data.sunset_time} />
-        <InfoItem label="Adjusted Sunset" value={data.adjusted_sunset} />
-        <InfoItem label="Horizon Angle" value={`${data.terrain_horizon_angle}\u00B0`} />
-        <InfoItem label="Humidity" value={`${data.humidity}%`} />
-        <InfoItem label="Low Cloud" value={`${data.cloud_cover_low}%`} />
-        <InfoItem label="Mid Cloud" value={`${data.cloud_cover_mid}%`} />
-        <InfoItem label="High Cloud" value={`${data.cloud_cover_high}%`} />
-      </div>
+      ) : (
+        <p className="text-white/50 text-sm">{data.message}</p>
+      )}
     </div>
   );
 }
 
-function InfoItem({ label, value }) {
+function ConditionRow({ condition }) {
+  const colorClass = ratingColors[condition.rating] || ratingColors.Fair;
   return (
-    <div className="rounded-lg bg-white/5 px-3 py-2">
-      <p className="text-white/50 text-xs">{label}</p>
-      <p className="text-white font-medium">{value}</p>
+    <div className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2">
+      <span className="text-white/70 text-sm">{condition.field}</span>
+      <div className="flex items-center gap-3">
+        <span className="text-white font-medium text-sm">{condition.value}%</span>
+        <span
+          className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${colorClass}`}
+        >
+          {condition.rating}
+        </span>
+      </div>
     </div>
   );
 }

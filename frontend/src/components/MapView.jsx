@@ -57,11 +57,14 @@ export default function MapView({ position, spots, onMapClick, flyTo }) {
       {spots.map((spot, i) => (
         <Marker key={i} position={[spot.lat, spot.lon]} icon={spotIcon}>
           <Popup>
-            <div className="text-sm">
+            <div className="text-sm space-y-1">
               <p className="font-semibold">Spot #{i + 1}</p>
-              <p>Score: {spot.score}</p>
-              <p>Distance: {spot.distance_km} km</p>
-              <p>Horizon: {spot.horizon_angle}&deg;</p>
+              <p className="text-gray-500">{spot.distance_km} km away</p>
+              {(spot.conditions || []).map((c) => (
+                <p key={c.field}>
+                  {c.field}: {c.value}% ({c.rating})
+                </p>
+              ))}
             </div>
           </Popup>
         </Marker>

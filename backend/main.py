@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import MAX_FORECAST_DAYS
-from backend.services.sunset_service import get_sunset_prediction, get_weather_context
+from backend.services.sunset_service import get_sunset_prediction
 from backend.services.terrain_service import find_best_sunset_spots
 from backend.utils.astronomy import get_sunset_azimuth
 from backend.models.sunset_models import SunsetResponse, BestSpotsResponse
@@ -64,9 +64,5 @@ def get_best_spots(
 ):
     target_date = _parse_date(date)
     azimuth = get_sunset_azimuth(lat, lon, target_date)
-
-    ctx = get_weather_context(lat, lon, target_date)
-    base_score = ctx["base_score"] if ctx else 0.5
-
-    spots = find_best_sunset_spots(lat, lon, azimuth, base_score, radius_km)
+    spots = find_best_sunset_spots(lat, lon, target_date, radius_km)
     return BestSpotsResponse(sunset_azimuth=round(azimuth, 1), spots=spots)

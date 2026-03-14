@@ -1,16 +1,16 @@
 from pydantic import BaseModel
 
 
+class ConditionDetail(BaseModel):
+    field: str
+    value: float
+    rating: str
+
+
 class SunsetResponse(BaseModel):
     sunset_time: str
-    adjusted_sunset: str
-    sunset_score: float | None = None
-    rating: str
-    terrain_horizon_angle: float
-    cloud_cover_low: float | None = None
-    cloud_cover_mid: float | None = None
-    cloud_cover_high: float | None = None
-    humidity: float | None = None
+    sunset_azimuth: float
+    conditions: list[ConditionDetail] | None = None
     weather_available: bool = True
     message: str | None = None
 
@@ -18,10 +18,8 @@ class SunsetResponse(BaseModel):
 class SunsetSpot(BaseModel):
     lat: float
     lon: float
-    horizon_angle: float
-    elevation: float
     distance_km: float
-    score: float
+    conditions: list[ConditionDetail]
 
 
 class BestSpotsResponse(BaseModel):

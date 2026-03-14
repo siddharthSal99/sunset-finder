@@ -1,47 +1,74 @@
-from backend.utils.scoring import compute_sunset_score
+from backend.utils.scoring import (
+    rate_low_cloud,
+    rate_mid_cloud,
+    rate_high_cloud,
+    rate_humidity,
+    rate_conditions,
+    conditions_quality_score,
+)
 
 
-def test_perfect_conditions():
-    result = compute_sunset_score(
-        low_cloud=0.0, mid_cloud=1.0, high_cloud=1.0,
-        humidity=1.0, horizon_angle=0.0,
-    )
-    assert result["score"] == 10.0
-    assert result["label"] == "Spectacular"
+def test_rate_low_cloud():
+    assert rate_low_cloud(5) == "Ideal"
+    assert rate_low_cloud(15) == "Excellent"
+    assert rate_low_cloud(35) == "Good"
+    assert rate_low_cloud(60) == "Fair"
+    assert rate_low_cloud(85) == "Poor"
 
 
-def test_terrible_conditions():
-    result = compute_sunset_score(
-        low_cloud=1.0, mid_cloud=0.0, high_cloud=0.0,
-        humidity=0.0, horizon_angle=5.0,
-    )
-    assert result["score"] == 0.0
-    assert result["label"] == "Poor"
+def test_rate_mid_cloud():
+    assert rate_mid_cloud(80) == "Ideal"
+    assert rate_mid_cloud(55) == "Excellent"
+    assert rate_mid_cloud(35) == "Good"
+    assert rate_mid_cloud(15) == "Fair"
+    assert rate_mid_cloud(5) == "Poor"
 
 
-def test_score_clamped_between_0_and_10():
-    result = compute_sunset_score(
-        low_cloud=1.0, mid_cloud=0.0, high_cloud=0.0,
-        humidity=0.0, horizon_angle=20.0,
-    )
-    assert result["score"] >= 0.0
-    assert result["score"] <= 10.0
+def test_rate_high_cloud():
+    assert rate_high_cloud(70) == "Ideal"
+    assert rate_high_cloud(50) == "Excellent"
+    assert rate_high_cloud(30) == "Good"
+    assert rate_high_cloud(12) == "Fair"
+    assert rate_high_cloud(5) == "Poor"
 
 
-def test_terrain_penalty_reduces_score():
-    flat = compute_sunset_score(0.2, 0.5, 0.5, 0.5, horizon_angle=0.0)
-    hilly = compute_sunset_score(0.2, 0.5, 0.5, 0.5, horizon_angle=3.0)
-    assert flat["score"] > hilly["score"]
+def test_rate_humidity():
+    assert rate_humidity(45) == "Ideal"
+    assert rate_humidity(30) == "Excellent"
+    assert rate_humidity(60) == "Excellent"
+    assert rate_humidity(20) == "Good"
+    assert rate_humidity(5) == "Fair"
+    assert rate_humidity(95) == "Poor"
 
 
-def test_rating_labels():
-    thresholds = [
-        (0.9, "Spectacular"),
-        (0.7, "Great"),
-        (0.5, "Good"),
-        (0.3, "Fair"),
-        (0.0, "Poor"),
-    ]
-    for mid_cloud, expected_min_label in thresholds:
-        result = compute_sunset_score(0.0, mid_cloud, 0.0, 0.0, 0.0)
-        assert result["label"] in ("Spectacular", "Great", "Good", "Fair", "Poor")
+def test_rate_conditions_returns_four_items():
+    result = rate_conditions(10, 70, 50, 45)
+    assert len(result) == 4
+    for c in result:
+        assert "field" in c
+        assert "value" in c
+        assert "rating" in c
+
+
+def test_perfect_conditions_all_ideal():
+    result = rate_conditions(5, 80, 65, 45)
+    for c in result:
+        assert c["rating"] == "Ideal"
+
+
+def test_terrible_conditions_all_poor():
+    result = rate_conditions(90, 5, 3, 95)
+    for c in result:
+        assert c["rating"] == "Poor"
+
+
+def test_quality_score_higher_for_better_conditions():
+    good = rate_conditions(5, 80, 65, 45)
+    bad = rate_conditions(90, 5, 3, 95)
+    assert conditions_quality_score(good) > conditions_quality_score(bad)
+
+
+def test_deterministic():
+    a = rate_conditions(20, 55, 40, 50)
+    b = rate_conditions(20, 55, 40, 50)
+    assert a == b
