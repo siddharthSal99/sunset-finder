@@ -1,7 +1,10 @@
 from datetime import datetime, date
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from backend.config import MAX_FORECAST_DAYS
 from backend.services.sunset_service import get_sunset_prediction
@@ -9,6 +12,8 @@ from backend.services.terrain_service import find_best_sunset_spots
 from backend.services.elevation_service import find_elevation_viewpoints
 from backend.utils.astronomy import get_sunset_azimuth
 from backend.models.sunset_models import SunsetResponse, BestSpotsResponse
+
+FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
 app = FastAPI(title="Sunset Finder API")
 
@@ -76,3 +81,16 @@ def get_best_spots(
         sunset_azimuth=round(azimuth, 1),
         spots=weather_spots + elevation_spots,
     )
+
+
+# --- Serve the Vite-built frontend (only when the build exists, i.e. on Vercel) ---
+
+if FRONTEND_DIR.is_dir():
+    app.mount("/assets", StaticFiles(directory=FRONTEND_DIR / "assets"), name="static_assets")
+
+    @app.get("/{path:path}")
+    def serve_frontend(path: str):
+        file = FRONTEND_DIR / path
+        if path and file.is_file():
+            return FileResponse(file)
+        return FileResponse(FRONTEND_DIR / "index.html")
