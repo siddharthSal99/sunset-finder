@@ -6,8 +6,9 @@ export async function fetchSunsetPrediction(lat, lon, date = null) {
   return res.json();
 }
 
-export async function fetchBestSpots(lat, lon, radiusKm = 20) {
+export async function fetchBestSpots(lat, lon, radiusKm = 20, date = null) {
   const params = new URLSearchParams({ lat, lon, radius_km: radiusKm });
+  if (date) params.set("date", date);
   const res = await fetch(`/api/best-sunset-spots?${params}`);
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res.json();

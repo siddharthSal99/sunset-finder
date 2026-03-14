@@ -4,13 +4,15 @@ from pydantic import BaseModel
 class SunsetResponse(BaseModel):
     sunset_time: str
     adjusted_sunset: str
-    sunset_score: float
+    sunset_score: float | None = None
     rating: str
     terrain_horizon_angle: float
-    cloud_cover_low: float
-    cloud_cover_mid: float
-    cloud_cover_high: float
-    humidity: float
+    cloud_cover_low: float | None = None
+    cloud_cover_mid: float | None = None
+    cloud_cover_high: float | None = None
+    humidity: float | None = None
+    weather_available: bool = True
+    message: str | None = None
 
 
 class SunsetSpot(BaseModel):

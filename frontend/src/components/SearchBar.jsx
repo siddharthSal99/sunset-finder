@@ -1,14 +1,32 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
-export default function SearchBar({ onSearch, loading }) {
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function maxDateStr() {
+  const d = new Date();
+  d.setDate(d.getDate() + 16);
+  return d.toISOString().slice(0, 10);
+}
+
+export default function SearchBar({ onSearch, loading, position }) {
   const [lat, setLat] = useState("");
   const [lon, setLon] = useState("");
+  const [date, setDate] = useState("");
+
+  useEffect(() => {
+    if (position) {
+      setLat(String(position[0]));
+      setLon(String(position[1]));
+    }
+  }, [position]);
 
   function handleSubmit(e) {
     e.preventDefault();
     const la = parseFloat(lat);
     const lo = parseFloat(lon);
-    if (!isNaN(la) && !isNaN(lo)) onSearch(la, lo);
+    if (!isNaN(la) && !isNaN(lo)) onSearch(la, lo, date || null);
   }
 
   function handleMyLocation() {
@@ -19,7 +37,7 @@ export default function SearchBar({ onSearch, loading }) {
         const lo = pos.coords.longitude;
         setLat(la.toFixed(4));
         setLon(lo.toFixed(4));
-        onSearch(la, lo);
+        onSearch(la, lo, date || null);
       },
       () => alert("Could not get your location"),
     );
@@ -45,6 +63,20 @@ export default function SearchBar({ onSearch, loading }) {
           className="flex-1 rounded-lg bg-white/10 border border-white/20 px-3 py-2 text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-sunset-400"
         />
       </div>
+      <input
+        type="date"
+        value={date}
+        min={todayStr()}
+        max={maxDateStr()}
+        onChange={(e) => {
+          const newDate = e.target.value;
+          setDate(newDate);
+          const la = parseFloat(lat);
+          const lo = parseFloat(lon);
+          if (!isNaN(la) && !isNaN(lo)) onSearch(la, lo, newDate || null);
+        }}
+        className="w-full rounded-lg bg-white/10 border border-white/20 px-3 py-2 text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-sunset-400 [color-scheme:dark]"
+      />
       <div className="flex gap-2">
         <button
           type="submit"

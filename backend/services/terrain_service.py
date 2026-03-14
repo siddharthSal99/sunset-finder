@@ -1,19 +1,21 @@
 import math
-import hashlib
 from backend.config import TERRAIN_SAMPLE_DISTANCES_KM, BEST_SPOTS_GRID_STEP_KM, BEST_SPOTS_TOP_N
 
 
-def _coordinate_hash(lat: float, lon: float) -> float:
-    """Deterministic pseudo-random value in [0, 1) seeded by coordinates."""
-    key = f"{lat:.6f},{lon:.6f}"
-    h = hashlib.md5(key.encode()).hexdigest()
-    return int(h[:8], 16) / 0xFFFFFFFF
-
-
 def get_elevation(lat: float, lon: float) -> float:
-    """Mock elevation provider. Returns a plausible elevation in metres."""
-    base = _coordinate_hash(lat, lon) * 500
-    return round(base, 1)
+    """Mock elevation provider using smooth sine waves for spatial coherence.
+
+    Nearby coordinates produce similar elevations, mimicking real terrain.
+    Returns a value roughly in [0, 500] metres.
+    """
+    elev = (
+        100 * math.sin(lat * 1.1 + 0.3) * math.cos(lon * 1.3 + 0.7)
+        + 60 * math.sin(lat * 5.7 + lon * 3.2)
+        + 30 * math.cos(lat * 13.0 - lon * 11.0)
+        + 15 * math.sin(lat * 37.0 + lon * 29.0)
+    )
+    elev = max(0.0, elev + 250)
+    return round(elev, 1)
 
 
 def _destination_point(lat: float, lon: float, azimuth_deg: float, distance_km: float):
@@ -78,8 +80,20 @@ def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 
 def find_best_sunset_spots(
-    lat: float, lon: float, radius_km: float = 20
+    lat: float,
+    lon: float,
+    azimuth: float,
+    weather_score: float,
+    radius_km: float = 20,
 ) -> list[dict]:
+    """Find the best nearby viewpoints, scored on the same 0-10 scale as
+    the main sunset prediction (weather + terrain).
+
+    *weather_score* is the pre-terrain weather component (0-1) computed once
+    for the area.  Each candidate gets its own terrain penalty applied to
+    that base, producing a final 0-10 score directly comparable to the
+    ``/sunset`` endpoint.
+    """
     step = BEST_SPOTS_GRID_STEP_KM
     deg_step = step / 111.0
 
@@ -92,15 +106,16 @@ def find_best_sunset_spots(
             dist = _haversine_km(lat, lon, grid_lat, grid_lon)
             if 0.5 < dist <= radius_km:
                 elev = get_elevation(grid_lat, grid_lon)
-                horizon = compute_horizon_angle(grid_lat, grid_lon, 270.0)
-                location_score = (5 - horizon) + elev / 1000 - dist * 0.1
+                horizon = compute_horizon_angle(grid_lat, grid_lon, azimuth)
+                spot_score = weather_score - horizon / 10
+                spot_score = max(0.0, min(1.0, spot_score))
                 candidates.append({
                     "lat": round(grid_lat, 5),
                     "lon": round(grid_lon, 5),
                     "horizon_angle": round(horizon, 2),
                     "elevation": round(elev, 1),
                     "distance_km": round(dist, 2),
-                    "score": round(location_score, 2),
+                    "score": round(spot_score * 10, 2),
                 })
             grid_lon += deg_step
         grid_lat += deg_step

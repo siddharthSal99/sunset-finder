@@ -13,8 +13,12 @@ export default function App() {
   const [error, setError] = useState(null);
   const [flyTo, setFlyTo] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(null);
 
-  const handleSearch = useCallback(async (lat, lon) => {
+  const handleSearch = useCallback(async (lat, lon, date = null) => {
+    if (date !== undefined) setSelectedDate(date);
+    const dateToUse = date !== undefined ? date : selectedDate;
+
     setPosition([lat, lon]);
     setFlyTo([lat, lon]);
     setLoading(true);
@@ -24,8 +28,8 @@ export default function App() {
 
     try {
       const [sunset, spotsRes] = await Promise.all([
-        fetchSunsetPrediction(lat, lon),
-        fetchBestSpots(lat, lon),
+        fetchSunsetPrediction(lat, lon, dateToUse),
+        fetchBestSpots(lat, lon, 20, dateToUse),
       ]);
       setSunsetData(sunset);
       setSpots(spotsRes.spots || []);
@@ -34,16 +38,17 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedDate]);
 
   const handleMapClick = useCallback(
     (latlng) => {
       handleSearch(
         parseFloat(latlng.lat.toFixed(4)),
         parseFloat(latlng.lng.toFixed(4)),
+        selectedDate,
       );
     },
-    [handleSearch],
+    [handleSearch, selectedDate],
   );
 
   const handleFlyTo = useCallback((coords) => {
@@ -86,7 +91,7 @@ export default function App() {
           </div>
 
           {/* Search */}
-          <SearchBar onSearch={handleSearch} loading={loading} />
+          <SearchBar onSearch={handleSearch} loading={loading} position={position} />
 
           {/* Error */}
           {error && (
