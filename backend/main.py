@@ -21,6 +21,11 @@ app.add_middleware(
 )
 
 
+@app.get("/api")
+def health_check():
+    return {"status": "ok"}
+
+
 def _parse_date(raw: str | None) -> date:
     """Parse a YYYY-MM-DD string, default to today, reject past dates."""
     if raw is None:
