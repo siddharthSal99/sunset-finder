@@ -36,8 +36,9 @@ def get_sunset_prediction(
         weather = None
 
     tz = weather.get("timezone", "UTC") if weather else "UTC"
-    sunset_dt = get_sunset_time(lat, lon, date, timezone=tz)
-    azimuth = get_sunset_azimuth(lat, lon, date, timezone=tz)
+    effective_date = weather.get("effective_date", date) if weather else date
+    sunset_dt = get_sunset_time(lat, lon, effective_date, timezone=tz)
+    azimuth = get_sunset_azimuth(lat, lon, effective_date, timezone=tz)
 
     if weather is not None:
         w = _extract_weather_at_sunset(weather, sunset_dt)

@@ -1,4 +1,5 @@
 import datetime
+from zoneinfo import ZoneInfo
 
 import requests
 
@@ -22,7 +23,6 @@ def get_weather_forecast(
 
     if delta_days < 0:
         delta_days = 0
-        date = today
 
     if delta_days >= MAX_FORECAST_DAYS:
         raise WeatherUnavailableError(
@@ -30,7 +30,9 @@ def get_weather_forecast(
             f"Requested date is {delta_days} days from today."
         )
 
-    forecast_days = max(delta_days + 1, 1)
+    # Extra day to cover timezone differences between the server clock
+    # (UTC on Vercel / cloud hosts) and the queried location's local date.
+    forecast_days = min(max(delta_days + 2, 2), MAX_FORECAST_DAYS)
 
     # Snap to 1-decimal-degree grid (~11 km) so nearby clicks always hit the
     # same Open-Meteo cell and return consistent weather values.
@@ -55,9 +57,25 @@ def get_weather_forecast(
 
     hourly = data.get("hourly", {})
     times = hourly.get("time", [])
+    tz_name = data.get("timezone", "UTC")
 
+    effective_date = date
     date_prefix = date.isoformat()
     indices = [i for i, t in enumerate(times) if t.startswith(date_prefix)]
+
+    # Server-UTC date may differ from the location's local date.  When the
+    # requested prefix yields no matches, fall back to the location's
+    # current local date so we always return meaningful data.
+    if not indices and times:
+        try:
+            local_today = datetime.datetime.now(ZoneInfo(tz_name)).date()
+            local_prefix = local_today.isoformat()
+            fallback = [i for i, t in enumerate(times) if t.startswith(local_prefix)]
+            if fallback:
+                indices = fallback
+                effective_date = local_today
+        except Exception:
+            pass
 
     if not indices:
         raise WeatherUnavailableError(
@@ -70,5 +88,6 @@ def get_weather_forecast(
         "cloud_cover_mid": [hourly.get("cloud_cover_mid", [])[i] for i in indices],
         "cloud_cover_high": [hourly.get("cloud_cover_high", [])[i] for i in indices],
         "humidity": [hourly.get("relative_humidity_2m", [])[i] for i in indices],
-        "timezone": data.get("timezone", "UTC"),
+        "timezone": tz_name,
+        "effective_date": effective_date,
     }

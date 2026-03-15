@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
@@ -42,7 +42,7 @@ def _parse_date(raw: str | None) -> date:
             status_code=400,
             detail="Invalid date format. Use YYYY-MM-DD.",
         )
-    if target < date.today():
+    if target < date.today() - timedelta(days=1):
         raise HTTPException(
             status_code=400,
             detail="Date must not be in the past.",

@@ -68,7 +68,8 @@ def find_best_sunset_spots(lat, lon, date, radius_km=20) -> list[dict]:
             return None
 
         tz = weather.get("timezone", "UTC")
-        sunset_dt = get_sunset_time(cell_lat, cell_lon, date, timezone=tz)
+        effective_date = weather.get("effective_date", date)
+        sunset_dt = get_sunset_time(cell_lat, cell_lon, effective_date, timezone=tz)
         idx = _find_nearest_hour_index(weather["time"], sunset_dt)
 
         low = weather["cloud_cover_low"][idx] if weather["cloud_cover_low"] else 30
